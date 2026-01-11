@@ -7,6 +7,9 @@ struct SettingsView: View {
     @State private var isValidating: Bool = false
     @State private var showSuccessHint: Bool = false
     @State private var showErrorHint: Bool = false
+    @State private var selectedLocalModel: LocalWhisperModel = Constants.selectedLocalModel
+    @State private var showingDeleteConfirmation = false
+    @State private var modelToDelete: LocalWhisperModel?
     
     private let accentColor = Color(nsColor: .controlAccentColor)
     private let secondaryBg = Color(white: 1).opacity(0.04)
@@ -20,48 +23,72 @@ struct SettingsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     
-                    // MARK: - API Configuration Section
-                    SettingsSection(title: "CONFIGURATION API", icon: "key.fill") {
+                    // MARK: - Transcription Mode Section
+                    SettingsSection(title: "MODE DE TRANSCRIPTION", icon: "cpu") {
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 10) {
-                                SecureField("sk-...", text: $apiKeyInput)
-                                    .textFieldStyle(RefinedTextFieldStyle())
-                                    .frame(maxWidth: .infinity)
-                                
-                                Button(action: validateKey) {
-                                    HStack(spacing: 6) {
-                                        if isValidating {
-                                            ProgressView()
-                                                .controlSize(.small)
-                                                .scaleEffect(0.6)
-                                        } else {
-                                            Text("Valider")
-                                                .font(.system(size: 11, weight: .medium))
-                                        }
-                                    }
-                                    .frame(width: 70, height: 24)
+                            Picker("Mode", selection: $appState.transcriptionMode) {
+                                ForEach(TranscriptionMode.allCases, id: \.self) { mode in
+                                    Text(mode.displayName).tag(mode)
                                 }
-                                .buttonStyle(RefinedButtonStyle(isPrimary: true))
-                                .disabled(apiKeyInput.isEmpty || isValidating)
                             }
-                            
-                            HStack(spacing: 12) {
-                                statusIndicator
-                                
-                                Spacer()
-                                
-                                Link(destination: URL(string: "https://platform.openai.com/api-keys")!) {
-                                    HStack(spacing: 4) {
-                                        Text("Obtenir une clé")
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 9))
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+
+                            Text(appState.transcriptionMode.description)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+
+                            // Show model status for local mode
+                            if appState.transcriptionMode == .local {
+                                modelManagementView
+                            }
+                        }
+                    }
+
+                    // MARK: - API Configuration Section (only for cloud mode)
+                    if appState.transcriptionMode == .cloud {
+                        SettingsSection(title: "CONFIGURATION API", icon: "key.fill") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 10) {
+                                    SecureField("sk-...", text: $apiKeyInput)
+                                        .textFieldStyle(RefinedTextFieldStyle())
+                                        .frame(maxWidth: .infinity)
+
+                                    Button(action: validateKey) {
+                                        HStack(spacing: 6) {
+                                            if isValidating {
+                                                ProgressView()
+                                                    .controlSize(.small)
+                                                    .scaleEffect(0.6)
+                                            } else {
+                                                Text("Valider")
+                                                    .font(.system(size: 11, weight: .medium))
+                                            }
+                                        }
+                                        .frame(width: 70, height: 24)
                                     }
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(accentColor.opacity(0.9))
+                                    .buttonStyle(RefinedButtonStyle(isPrimary: true))
+                                    .disabled(apiKeyInput.isEmpty || isValidating)
                                 }
-                                .buttonStyle(.plain)
-                                .onHover { inside in
-                                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+
+                                HStack(spacing: 12) {
+                                    statusIndicator
+
+                                    Spacer()
+
+                                    Link(destination: URL(string: "https://platform.openai.com/api-keys")!) {
+                                        HStack(spacing: 4) {
+                                            Text("Obtenir une clé")
+                                            Image(systemName: "arrow.up.right")
+                                                .font(.system(size: 9))
+                                        }
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(accentColor.opacity(0.9))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .onHover { inside in
+                                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                                    }
                                 }
                             }
                         }
@@ -105,7 +132,7 @@ struct SettingsView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Text("gpt-4o-mini-transcribe")
+                            Text(currentModelName)
                                 .font(.system(size: 10, weight: .bold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -124,8 +151,80 @@ struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
     
+    // MARK: - Computed Properties
+
+    private var currentModelName: String {
+        switch appState.transcriptionMode {
+        case .cloud:
+            return Constants.openAIModel
+        case .local:
+            return Constants.selectedLocalModel.displayName
+        }
+    }
+
     // MARK: - Subviews
-    
+
+    private var modelManagementView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Gestion des modèles")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                }
+                
+                Text("Sélectionnez un modèle et gérez ses téléchargements")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            Picker("Modèle actif", selection: $selectedLocalModel) {
+                ForEach(LocalWhisperModel.allCases, id: \.self) { model in
+                    Text("\(model.displayName) (\(model.fileSize))")
+                        .tag(model)
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: selectedLocalModel) { newModel in
+                Constants.selectedLocalModel = newModel
+            }
+            
+            Divider()
+                .opacity(0.5)
+            
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(LocalWhisperModel.allCases, id: \.self) { model in
+                    ModelRowView(
+                        model: model,
+                        isSelected: selectedLocalModel == model,
+                        downloadState: appState.getLocalModelDownloadState(model),
+                        onDownload: {
+                            Task {
+                                await appState.downloadLocalModel(model)
+                            }
+                        },
+                        onDelete: {
+                            modelToDelete = model
+                            showingDeleteConfirmation = true
+                        }
+                    )
+                }
+            }
+        }
+        .alert("Supprimer le modèle", isPresented: $showingDeleteConfirmation) {
+            Button("Annuler", role: .cancel) { }
+            Button("Supprimer", role: .destructive) {
+                if let model = modelToDelete {
+                    appState.deleteLocalModel(model)
+                }
+            }
+        } message: {
+            if let model = modelToDelete {
+                Text("Êtes-vous sûr de vouloir supprimer le modèle \(model.displayName) ?\n\nLa transcription nécessitera un nouveau téléchargement si ce modèle est réutilisé.")
+            }
+        }
+    }
+
     private var headerSection: some View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
@@ -186,12 +285,12 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.5)
             HStack {
-                Text("Whisper utilise l'API OpenAI pour une précision optimale.")
+                Text(footerText)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary.opacity(0.7))
-                
+
                 Spacer()
-                
+
                 Button("Quitter") {
                     NSApplication.shared.terminate(nil)
                 }
@@ -201,6 +300,15 @@ struct SettingsView: View {
             .padding(.vertical, 16)
         }
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+    }
+
+    private var footerText: String {
+        switch appState.transcriptionMode {
+        case .cloud:
+            return "Mode Cloud: transcription via l'API OpenAI."
+        case .local:
+            return "Mode Local: transcription sur l'appareil avec WhisperKit."
+        }
     }
     
     // MARK: - Logic
@@ -344,6 +452,121 @@ struct RefinedButtonStyle: ButtonStyle {
                 isHovering = inside
                 if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
+    }
+}
+
+struct ModelRowView: View {
+    let model: LocalWhisperModel
+    let isSelected: Bool
+    let downloadState: ModelDownloadState
+    let onDownload: () -> Void
+    let onDelete: () -> Void
+    
+    private let accentColor = Color(nsColor: .controlAccentColor)
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: model.icon)
+                .font(.system(size: 14))
+                .foregroundColor(isSelected ? accentColor : .secondary)
+                .frame(width: 20)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(model.displayName)
+                        .font(.system(size: 12, weight: .medium))
+                    
+                    Text(model.fileSize)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+                
+                Text(model.description)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            statusAndActionView
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(isSelected ? 0.05 : 0))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isSelected ? accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+    }
+    
+    @ViewBuilder
+    private var statusAndActionView: some View {
+        switch downloadState {
+        case .notDownloaded:
+            Button(action: onDownload) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 11))
+                    Text("Télécharger")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            }
+            .buttonStyle(RefinedButtonStyle(isPrimary: true))
+            
+        case .downloading:
+            VStack(spacing: 2) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(downloadState.shortStatusText)
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 120)
+            
+        case .downloaded:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.green)
+                
+                Text("Prêt")
+                    .font(.system(size: 10))
+                    .foregroundColor(.green)
+                
+                if !isSelected {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Supprimer le modèle")
+                }
+            }
+            
+        case .error(let message):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.red)
+                
+                Text(message)
+                    .font(.system(size: 9))
+                    .foregroundColor(.red)
+                    .lineLimit(1)
+                
+                Button(action: onDownload) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 

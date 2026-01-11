@@ -6,6 +6,7 @@
 # Xcode
 build/
 DerivedData/
+*.app/
 *.xcuserstate
 xcuserdata/
 *.xccheckout
@@ -18,6 +19,8 @@ Packages/
 
 # Claude Code
 .claude/
+CLAUDE.md
+*.skill
 
 # CocoaPods (si utilisé plus tard)
 Pods/
@@ -29,3 +32,6 @@ Carthage/Build/
 *.swp
 *.swo
 *~
+
+# Product backlog
+PRODUCT_BACKLOG.md

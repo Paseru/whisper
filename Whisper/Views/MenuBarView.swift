@@ -113,10 +113,12 @@ struct MenuBarView: View {
             return "text.bubble"
         } else if appState.isRecording {
             return "mic.fill"
-        } else if !appState.hasAPIKey {
+        } else if case .downloading = appState.modelDownloadState {
+            return "arrow.down.circle"
+        } else if !appState.canTranscribe {
             return "exclamationmark.circle"
         } else {
-            return "checkmark.circle"
+            return appState.transcriptionMode == .local ? "cpu" : "cloud"
         }
     }
 
@@ -125,7 +127,9 @@ struct MenuBarView: View {
             return .blue
         } else if appState.isRecording {
             return .red
-        } else if !appState.hasAPIKey {
+        } else if case .downloading = appState.modelDownloadState {
+            return .blue
+        } else if !appState.canTranscribe {
             return .orange
         } else {
             return .green
@@ -137,10 +141,15 @@ struct MenuBarView: View {
             return "Transcription en cours..."
         } else if appState.isRecording {
             return "Enregistrement..."
-        } else if !appState.hasAPIKey {
+        } else if case .downloading(let progress, _, _) = appState.modelDownloadState {
+            return "Téléchargement: \(Int(progress * 100))%"
+        } else if appState.transcriptionMode == .cloud && !appState.hasAPIKey {
             return "Clé API non configurée"
+        } else if appState.transcriptionMode == .local && !appState.modelDownloadState.isReady {
+            return "Modèle non téléchargé"
         } else {
-            return "Prêt"
+            let modeLabel = appState.transcriptionMode == .local ? "Local" : "Cloud"
+            return "Prêt (\(modeLabel))"
         }
     }
 }

@@ -20,6 +20,11 @@
 		BBB000001 /* SoundService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB000010 /* SoundService.swift */; };
 		BBB000002 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB000011 /* HistoryService.swift */; };
 		BBB000003 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB000012 /* HistoryView.swift */; };
+		CCC000001 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = CCC000002 /* WhisperKit */; };
+		DDD000001 /* TranscriptionMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000010 /* TranscriptionMode.swift */; };
+		DDD000002 /* TranscriptionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000011 /* TranscriptionProvider.swift */; };
+		DDD000003 /* CloudTranscriptionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000012 /* CloudTranscriptionProvider.swift */; };
+		DDD000004 /* LocalTranscriptionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD000013 /* LocalTranscriptionProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +44,10 @@
 		BBB000010 /* SoundService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundService.swift; sourceTree = "<group>"; };
 		BBB000011 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
 		BBB000012 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		DDD000010 /* TranscriptionMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionMode.swift; sourceTree = "<group>"; };
+		DDD000011 /* TranscriptionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionProvider.swift; sourceTree = "<group>"; };
+		DDD000012 /* CloudTranscriptionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudTranscriptionProvider.swift; sourceTree = "<group>"; };
+		DDD000013 /* LocalTranscriptionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalTranscriptionProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +55,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CCC000001 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +95,9 @@
 				AAA000017 /* TextInjector.swift */,
 				BBB000010 /* SoundService.swift */,
 				BBB000011 /* HistoryService.swift */,
+				DDD000011 /* TranscriptionProvider.swift */,
+				DDD000012 /* CloudTranscriptionProvider.swift */,
+				DDD000013 /* LocalTranscriptionProvider.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -94,6 +107,7 @@
 			children = (
 				AAA000018 /* KeychainHelper.swift */,
 				AAA000019 /* Constants.swift */,
+				DDD000010 /* TranscriptionMode.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -130,6 +144,9 @@
 			dependencies = (
 			);
 			name = Whisper;
+			packageProductDependencies = (
+				CCC000002 /* WhisperKit */,
+			);
 			productName = Whisper;
 			productReference = AAA00001C /* Whisper.app */;
 			productType = "com.apple.product-type.application";
@@ -158,6 +175,9 @@
 				Base,
 			);
 			mainGroup = AAA000023 /* Root */;
+			packageReferences = (
+				CCC000003 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
 			productRefGroup = AAA000022 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -195,6 +215,10 @@
 				BBB000001 /* SoundService.swift in Sources */,
 				BBB000002 /* HistoryService.swift in Sources */,
 				BBB000003 /* HistoryView.swift in Sources */,
+				DDD000001 /* TranscriptionMode.swift in Sources */,
+				DDD000002 /* TranscriptionProvider.swift in Sources */,
+				DDD000003 /* CloudTranscriptionProvider.swift in Sources */,
+				DDD000004 /* LocalTranscriptionProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,6 +416,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CCC000003 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CCC000002 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CCC000003 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AAA000028 /* Project object */;
 }

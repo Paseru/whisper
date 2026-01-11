@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @MainActor
 final class AppState: ObservableObject {
@@ -7,11 +8,41 @@ final class AppState: ObservableObject {
     @Published var lastError: String?
     @Published var hasAPIKey: Bool
 
+    @Published var transcriptionMode: TranscriptionMode {
+        didSet {
+            UserDefaults.standard.set(transcriptionMode.rawValue, forKey: Constants.transcriptionModeKey)
+        }
+    }
+
+    var modelDownloadState: ModelDownloadState {
+        LocalTranscriptionProvider.shared.downloadState
+    }
+
     let audioRecorder = AudioRecorder()
     let keyboardService = KeyboardService()
 
+    private let cloudProvider = CloudTranscriptionProvider.shared
+    private let localProvider = LocalTranscriptionProvider.shared
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
         hasAPIKey = KeychainHelper.shared.hasAPIKey
+
+        // Restore saved transcription mode
+        if let savedMode = UserDefaults.standard.string(forKey: Constants.transcriptionModeKey),
+           let mode = TranscriptionMode(rawValue: savedMode) {
+            transcriptionMode = mode
+        } else {
+            transcriptionMode = .cloud // Default to cloud for backward compatibility
+        }
+
+        // Observe local provider download state changes
+        localProvider.$downloadStates
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
 
         // Push-to-talk: Fn pressé = enregistre, Fn relâché = transcrit
         keyboardService.onFnPressed = { [weak self] in
@@ -35,9 +66,25 @@ final class AppState: ObservableObject {
         }
     }
 
+    var canTranscribe: Bool {
+        switch transcriptionMode {
+        case .cloud:
+            return hasAPIKey
+        case .local:
+            return modelDownloadState.isReady
+        }
+    }
+
     private func startRecording() {
-        guard hasAPIKey else {
+        // Vérifier les prérequis selon le mode
+        if transcriptionMode == .cloud && !hasAPIKey {
             lastError = "Configure ta clé API dans les préférences"
+            SoundService.shared.playErrorSound()
+            return
+        }
+
+        if transcriptionMode == .local && !modelDownloadState.isReady {
+            lastError = "Télécharge d'abord un modèle local dans les préférences"
             SoundService.shared.playErrorSound()
             return
         }
@@ -77,7 +124,14 @@ final class AppState: ObservableObject {
 
         Task {
             do {
-                let text = try await TranscriptionService.shared.transcribe(audioURL: audioURL)
+                let text: String
+                switch transcriptionMode {
+                case .cloud:
+                    text = try await cloudProvider.transcribe(audioURL: audioURL)
+                case .local:
+                    text = try await localProvider.transcribe(audioURL: audioURL)
+                }
+
                 await MainActor.run {
                     // Sauvegarder dans l'historique
                     HistoryService.shared.add(text)
@@ -99,7 +153,7 @@ final class AppState: ObservableObject {
     }
 
     func updateAPIKey(_ key: String) async -> Bool {
-        let isValid = await TranscriptionService.shared.validateAPIKey(key)
+        let isValid = await cloudProvider.validateAPIKey(key)
         await MainActor.run {
             if isValid {
                 _ = KeychainHelper.shared.save(apiKey: key)
@@ -112,5 +166,41 @@ final class AppState: ObservableObject {
     func clearAPIKey() {
         KeychainHelper.shared.delete()
         hasAPIKey = false
+    }
+
+    func setTranscriptionMode(_ mode: TranscriptionMode) {
+        transcriptionMode = mode
+    }
+
+    func downloadLocalModel() async {
+        do {
+            try await localProvider.downloadModel()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+    
+    func getLocalModelDownloadState(_ model: LocalWhisperModel) -> ModelDownloadState {
+        return localProvider.getDownloadState(for: model)
+    }
+    
+    func downloadLocalModel(_ model: LocalWhisperModel) async {
+        do {
+            try await localProvider.downloadModel(for: model)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+    
+    func deleteLocalModel(_ model: LocalWhisperModel) {
+        do {
+            try localProvider.deleteModel(for: model)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+    
+    func checkLocalModelsStatus() async {
+        await localProvider.checkAllModelsStatus()
     }
 }
